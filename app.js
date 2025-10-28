@@ -1,9 +1,46 @@
 (function(){
 
-  // ==== Конфигурация из Webflow ====
-  const SUPA = (window.PDD_CONFIG && window.PDD_CONFIG.SUPA) || 'https://znyrhapjermssjpmorbt.supabase.co';
-  const ANON = (window.PDD_CONFIG && window.PDD_CONFIG.ANON) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpueXJoYXBqZXJtc3NqcG1vcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MTUyOTAsImV4cCI6MjA3NDM5MTI5MH0.W4oCAfzytKL01YAlc5wXMDxCJfm0wZh7RZjIAGtYVE0';
+   function showConfigError(message){
+    const msg = message || 'Не удалось инициализировать тренажёр: отсутствуют параметры подключения.';
+    const render = () => {
+      const container = document.createElement('div');
+      container.setAttribute('role', 'alert');
+      container.style.background = '#fff3cd';
+      container.style.color = '#856404';
+      container.style.padding = '16px';
+      container.style.margin = '16px';
+      container.style.border = '1px solid #ffeeba';
+      container.style.borderRadius = '8px';
+      container.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      container.innerHTML = `<strong>Требуется конфигурация.</strong><br>${msg}<br>` +
+        'Перед загрузкой скрипта задайте <code>window.PDD_CONFIG</code> с ключами <code>SUPA</code> и <code>ANON</code>.';
+      const target = document.body || document.documentElement;
+      if (target) {
+        if (typeof target.prepend === 'function') {
+          target.prepend(container);
+        } else {
+          target.insertBefore(container, target.firstChild || null);
+        }
+      }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', render, { once: true });
+    } else {
+      render();
+    }
+    console.error(`PDD Trainer: ${msg}`);
+  }
 
+  // ==== Конфигурация из Webflow ====
+  const CONFIG = window.PDD_CONFIG || null;
+  const SUPA = CONFIG && CONFIG.SUPA;
+  const ANON = CONFIG && CONFIG.ANON;
+
+  if (!SUPA || !ANON) {
+    showConfigError('Проверьте, что параметры <code>SUPA</code> и <code>ANON</code> переданы в глобальный объект конфигурации.');
+    return;
+  }
+  
   // -------- Хэш тренажёра: #t<topic>-<ticket>
   // поддерживаем старые форматы #t-<n> и #<n> (миграция в тему 1)
   function parseHash() {
