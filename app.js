@@ -1,7 +1,8 @@
 (function(){
-  // ========== Настройки ==========
-  const SUPA = 'https://znyrhapjermssjpmorbt.supabase.co';
-  const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpueXJoYXBqZXJtc3NqcG1vcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MTUyOTAsImV4cCI6MjA3NDM5MTI5MH0.W4oCAfzytKL01YAlc5wXMDxCJfm0wZh7RZjIAGtYVE0';
+
+  // ==== Конфигурация из Webflow ====
+  const SUPA = (window.PDD_CONFIG && window.PDD_CONFIG.SUPA) || 'https://znyrhapjermssjpmorbt.supabase.co';
+  const ANON = (window.PDD_CONFIG && window.PDD_CONFIG.ANON) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpueXJoYXBqZXJtc3NqcG1vcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MTUyOTAsImV4cCI6MjA3NDM5MTI5MH0.W4oCAfzytKL01YAlc5wXMDxCJfm0wZh7RZjIAGtYVE0';
 
   // -------- Хэш тренажёра: #t<topic>-<ticket>
   // поддерживаем старые форматы #t-<n> и #<n> (миграция в тему 1)
