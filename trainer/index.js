@@ -613,6 +613,14 @@ export function bootstrapTrainer({ window: windowObj = window, document: documen
       windowObj.__pdd_banner_handlers = windowObj.__pdd_banner_handlers || {};
       windowObj.__pdd_banner_handlers.next = handleBannerNextClick;
       windowObj.__pdd_banner_handlers.reload = handleBannerReloadClick;
+
+      const bannerNextBtn = documentObj.getElementById(IDS.nextBtn);
+      if (bannerNextBtn) {
+        const currentText = bannerNextBtn.textContent || '';
+        if (/сохран/i.test(currentText)) {
+          setHeaderText(bannerNextBtn, 'Следующий билет');
+        }
+      }
     })();
 
     windowObj.addEventListener('beforeunload', () => {
