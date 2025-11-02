@@ -106,7 +106,7 @@
   }
 
   async function fetchJSON(url, opts={}, {timeoutMs=12000, retries=2}={}){
-    for (let attempt=0; attempt<=retries; attempt++){
+    for (let retryIndex=0; retryIndex<=retries; retryIndex++){
       const ctrl = new AbortController();
       const t = setTimeout(()=>ctrl.abort(), timeoutMs);
       try{
@@ -116,8 +116,8 @@
         return await res.json();
       }catch(err){
         clearTimeout(t);
-        if (attempt===retries) throw err;
-        await sleep(400*(attempt+1));
+        if (retryIndex===retries) throw err;
+        await sleep(400*(retryIndex+1));
       }
     }
   }
