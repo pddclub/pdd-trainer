@@ -498,76 +498,75 @@
     }
     window.addEventListener('keydown', onKeyDown);
 
-    // -------- Attempts: save / reload --------
-    function buildAttemptPayload(){
-      const answersObj = state && state.answers ? state.answers : {};
-      const totalQuestions = questions ? questions.length : Object.keys(answersObj).length;
-      const correctCount = Object.values(answersObj).filter(v => v === true).length;
-      const wrongCount = totalQuestions - correctCount;
-      const passed = wrongCount < 2;
-      return {
-        ticket_number: Number(TICKET), // схема attempts пока без topic_number
-        result: {
-          topic_number: Number(TOPIC), // на будущее — кладём в payload.result
-          answers: answersObj,
-          correct_count: correctCount,
-          wrong_count: wrongCount,
-          total_questions: totalQuestions,
-          passed: passed,
-          saved_at: new Date().toISOString()
-        }
-      };
-    }
-
-    async function postAttemptToSupabase(payloadArray){
-      const url = `${SUPA}/rest/v1/attempts`;
-      const body = JSON.stringify(payloadArray);
-      const res = await fetchJSON(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': ANON,
-          'Authorization': `Bearer ${ANON}`,
-          'Accept': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body
-      }, {timeoutMs:12000, retries:1});
-      return res;
-    }
-
+    // -------- Переход к другим билетам --------
     (function attachBannerHandlers(){
+      async function requestTicketPreview(topicNumber, ticketNumber){
+        const url =
+          `${SUPA}/rest/v1/questions` +
+          `?select=id` +
+          `&topic_number=eq.${topicNumber}` +
+          `&ticket_number=eq.${ticketNumber}` +
+          `&limit=1`;
+        const res = await fetchJSON(
+          url,
+          { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` } },
+          { timeoutMs: 8000, retries: 1 }
+        );
+        return Array.isArray(res) ? res : [];
+      }
+
+      async function resolveNextTicket(){
+        const currentTopic = Number(TOPIC);
+        const currentTicket = Number(TICKET);
+        const candidateTicket = currentTicket + 1;
+
+        try {
+          const candidateData = await requestTicketPreview(currentTopic, candidateTicket);
+          if (candidateData.length > 0) {
+            return { topic: currentTopic, ticket: candidateTicket };
+          }
+        } catch (err) {
+          console.warn('Next ticket preview failed, trying next topic', err);
+        }
+
+        const nextTopic = currentTopic + 1;
+        const fallbackTicket = 1;
+
+        const fallbackData = await requestTicketPreview(nextTopic, fallbackTicket);
+        if (fallbackData.length > 0) {
+          return { topic: nextTopic, ticket: fallbackTicket };
+        }
+
+        throw new Error('Следующий билет не найден');
+      }
+
       async function handleBannerNextClick(e){
         const btn = e.target.closest && e.target.closest(`#${IDS.nextBtn}`);
         if (!btn) return;
 
-        // сохраняем результат только когда тест завершён
+        // переходим к следующему билету только когда тест завершён
         if (!state.finished) return;
-        if (btn.dataset.pddSaving === '1') return;
+        if (btn.dataset.pddLoading === '1') return;
 
-        btn.dataset.pddSaving = '1';
+        btn.dataset.pddLoading = '1';
         const prevText = btn.textContent || '';
         btn.disabled = true;
-        btn.textContent = 'Сохранение...';
+        btn.textContent = 'Загрузка...';
 
         try {
-          const payload = buildAttemptPayload();
-          await postAttemptToSupabase([payload]);
-
           // чистим кэш/стейт текущего (topic, ticket)
           try { sessionStorage.removeItem(CACHE_KEY); sessionStorage.removeItem(STATE_KEY); } catch(e){}
 
-          // Переход к следующему билету в этой же теме
-          const nextTicket = Number(TICKET) + 1;
-          window.location.hash = `#t${TOPIC}-${nextTicket}`;
+          const nextTarget = await resolveNextTicket();
+          ensureNamespacedHash(nextTarget.topic, nextTarget.ticket);
           window.location.reload();
         } catch (err) {
-          console.error('Ошибка сохранения попытки:', err);
+          console.error('Не удалось перейти к следующему билету:', err);
           btn.disabled = false;
           btn.textContent = prevText;
-          alert('Не получилось сохранить результат. Проверьте соединение и консоль.');
+          alert('Не получилось открыть следующий билет. Проверьте соединение и консоль.');
         } finally {
-          delete btn.dataset.pddSaving;
+          delete btn.dataset.pddLoading;
         }
       }
 
