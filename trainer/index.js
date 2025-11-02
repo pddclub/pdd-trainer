@@ -1,4 +1,4 @@
-import { fetchTicketQuestions, postAttemptToSupabase } from '../services/supabase.js';
+import { fetchTicketQuestions } from '../services/supabase.js';
 import { loadTrainerState, saveTrainerState, clearTrainerData } from '../storage/session.js';
 
 function showConfigError(documentObj, message) {
@@ -37,7 +37,7 @@ function showConfigError(documentObj, message) {
   console.error(`PDD Trainer: ${msg}`);
 }
 
-function parseHash(hash) {
+export function parseHash(hash) {
   const h = (hash || '').replace(/^#/, '').trim();
   let m = h.match(/^t(\d+)-(\d+)$/i);
   if (m) return { topic: Number(m[1]), ticket: Number(m[2]) };
@@ -216,26 +216,6 @@ function preloadNextImage(questions, idx) {
     const img = new Image();
     img.src = next.image_url;
   }
-}
-
-function buildAttemptPayload({ state, questionsLength, topic, ticket }) {
-  const answersObj = state && state.answers ? state.answers : {};
-  const totalQuestions = questionsLength || Object.keys(answersObj).length;
-  const correctCount = Object.values(answersObj).filter((v) => v === true).length;
-  const wrongCount = totalQuestions - correctCount;
-  const passed = wrongCount < 2;
-  return {
-    ticket_number: Number(ticket),
-    result: {
-      topic_number: Number(topic),
-      answers: answersObj,
-      correct_count: correctCount,
-      wrong_count: wrongCount,
-      total_questions: totalQuestions,
-      passed,
-      saved_at: new Date().toISOString()
-    }
-  };
 }
 
 async function renderQuestionForIndex({
@@ -584,41 +564,35 @@ export function bootstrapTrainer({ window: windowObj = window, document: documen
     windowObj.addEventListener('keydown', onKeyDown);
 
     (function attachBannerHandlers() {
-      async function handleBannerNextClick(e) {
+      function handleBannerNextClick(e) {
         const btn = e.target.closest && e.target.closest(`#${IDS.nextBtn}`);
         if (!btn) return;
         if (!state.finished) return;
-        if (btn.dataset.pddSaving === '1') return;
+        if (btn.dataset.pddNavigating === '1') return;
 
-        btn.dataset.pddSaving = '1';
+        e.preventDefault();
+        e.stopPropagation();
+
+        btn.dataset.pddNavigating = '1';
         const prevText = btn.textContent || '';
         btn.disabled = true;
-        btn.textContent = 'Сохранение...';
+        btn.textContent = 'Загрузка...';
 
         try {
-          const payload = buildAttemptPayload({
-            state,
-            questionsLength: questions.length,
-            topic: TOPIC,
-            ticket: TICKET
-          });
-          await postAttemptToSupabase([payload], {
-            supabaseUrl: SUPA,
-            anonKey: ANON
-          });
-
           clearTrainerData([CACHE_KEY, STATE_KEY], { storage: windowObj.sessionStorage });
 
-          const nextTicket = Number(TICKET) + 1;
-          windowObj.location.hash = `#t${TOPIC}-${nextTicket}`;
-          windowObj.location.reload();
+          const nextTicketNumber = Number.isFinite(Number(TICKET)) ? Number(TICKET) + 1 : 1;
+          const nextHash = `#t${TOPIC}-${nextTicketNumber}`;
+          const nextUrl = new URL(windowObj.location.href);
+          nextUrl.hash = nextHash;
+          windowObj.location.assign(nextUrl.toString());
         } catch (err) {
-          console.error('Ошибка сохранения попытки:', err);
+          console.error('Ошибка перехода к следующему билету:', err);
           btn.disabled = false;
-          btn.textContent = prevText;
-          windowObj.alert('Не получилось сохранить результат. Проверьте соединение и консоль.');
+          setHeaderText(btn, prevText || 'Следующий билет');
+          windowObj.alert('Не получилось перейти к следующему билету. Проверьте консоль.');
         } finally {
-          delete btn.dataset.pddSaving;
+          delete btn.dataset.pddNavigating;
         }
       }
 
@@ -640,6 +614,14 @@ export function bootstrapTrainer({ window: windowObj = window, document: documen
       windowObj.__pdd_banner_handlers = windowObj.__pdd_banner_handlers || {};
       windowObj.__pdd_banner_handlers.next = handleBannerNextClick;
       windowObj.__pdd_banner_handlers.reload = handleBannerReloadClick;
+
+      const bannerNextBtn = documentObj.getElementById(IDS.nextBtn);
+      if (bannerNextBtn) {
+        const currentText = bannerNextBtn.textContent || '';
+        if (/сохран/i.test(currentText)) {
+          setHeaderText(bannerNextBtn, 'Следующий билет');
+        }
+      }
     })();
 
     windowObj.addEventListener('beforeunload', () => {
