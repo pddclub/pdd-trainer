@@ -538,8 +538,13 @@ export function bootstrapTrainer({ window: windowObj = window, document: documen
       nextBtn.disabled = true;
       nextBtn.style.display = '';
       nextBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        confirmAndNext();
+        if (!state.finished) {
+          e.stopPropagation();
+          confirmAndNext();
+          return;
+        }
+        // Allow the event to bubble when the test is finished so that
+        // global handlers (e.g. переход к следующему билету) can react.
       });
     }
 
