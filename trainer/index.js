@@ -583,13 +583,12 @@ export function bootstrapTrainer({ window: windowObj = window, document: documen
 
           const nextTicketNumber = Number.isFinite(Number(TICKET)) ? Number(TICKET) + 1 : 1;
           const nextHash = `#t${TOPIC}-${nextTicketNumber}`;
-          const nextUrl = new URL(windowObj.location.href);
-          nextUrl.hash = nextHash;
-          windowObj.location.assign(nextUrl.toString());
+          windowObj.location.hash = nextHash;
+          windowObj.location.reload();
         } catch (err) {
           console.error('Ошибка перехода к следующему билету:', err);
           btn.disabled = false;
-          setHeaderText(btn, prevText || 'Следующий билет');
+          btn.textContent = prevText;
           windowObj.alert('Не получилось перейти к следующему билету. Проверьте консоль.');
         } finally {
           delete btn.dataset.pddNavigating;
